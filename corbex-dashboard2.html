@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Corbex — Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#0f1729;
+  --navy2:#162040;
+  --navy3:#1c2a52;
+  --card:#ffffff;
+  --card2:#f4f6fb;
+  --border:#e4e9f5;
+  --text:#1a2340;
+  --text2:#6b7a99;
+  --text3:#a0aec0;
+  --purple:#7c5cfc;
+  --purple2:#9b7dfd;
+  --purple-light:#ede9ff;
+  --teal:#00c9b1;
+  --teal-light:#e0faf7;
+  --pink:#f45b8a;
+  --pink-light:#fde8f0;
+  --amber:#ffb547;
+  --amber-light:#fff5e0;
+  --blue:#4a90e2;
+  --blue-light:#e8f1fd;
+  --green:#2ecc8e;
+  --green-light:#e6f9f2;
+  --red:#f45b5b;
+  --font:'Plus Jakarta Sans',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --shadow:0 2px 12px rgba(15,23,41,.08);
+  --shadow2:0 4px 24px rgba(15,23,41,.12);
+  --r:14px;
+  --r-sm:10px;
+}
+html,body{height:100%;background:var(--card2);color:var(--text);font-family:var(--font);overflow:hidden}
+
+/* LAYOUT */
+.shell{display:grid;grid-template-columns:240px 1fr;height:100vh}
+.sidebar{background:var(--navy);display:flex;flex-direction:column;overflow:hidden}
+.main{display:grid;grid-template-rows:64px 1fr;overflow:hidden}
+
+/* SIDEBAR */
+.logo{padding:28px 24px 24px;border-bottom:1px solid rgba(255,255,255,.06)}
+.logo-wrap{display:flex;align-items:center;gap:12px}
+.logo-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--purple),#4a6cf7);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;flex-shrink:0;box-shadow:0 4px 14px rgba(124,92,252,.4)}
+.logo-name{font-weight:800;font-size:20px;color:#fff;letter-spacing:-0.03em}
+.logo-tagline{font-size:10px;color:rgba(255,255,255,.35);font-family:var(--mono);margin-top:1px}
+
+.nav{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav::-webkit-scrollbar{display:none}
+.nav-group{font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.25);letter-spacing:.12em;text-transform:uppercase;padding:14px 12px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r-sm);cursor:pointer;transition:all .15s;font-size:13.5px;font-weight:500;color:rgba(255,255,255,.5);position:relative}
+.nav-item:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.8)}
+.nav-item.active{background:linear-gradient(135deg,rgba(124,92,252,.25),rgba(74,108,247,.15));color:#fff;border:1px solid rgba(124,92,252,.3)}
+.nav-icon{width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--purple);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;font-family:var(--mono)}
+
+.sidebar-bottom{padding:16px 12px;border-top:1px solid rgba(255,255,255,.06)}
+.ai-pill{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,rgba(0,201,177,.15),rgba(124,92,252,.1));border:1px solid rgba(0,201,177,.25);border-radius:var(--r-sm);cursor:pointer}
+.ai-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 0 rgba(0,201,177,.5);animation:ripple 2s infinite}
+@keyframes ripple{0%{box-shadow:0 0 0 0 rgba(0,201,177,.5)}70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.ai-pill-text{font-size:12px;font-weight:600;color:var(--teal)}
+.ai-pill-sub{font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)}
+
+/* TOPBAR */
+.topbar{background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;box-shadow:0 1px 0 var(--border)}
+.page-title{font-weight:700;font-size:18px;letter-spacing:-0.02em;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:13px;color:var(--text2);cursor:pointer}
+.topbar-btn{width:36px;height:36px;border-radius:9px;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;position:relative;transition:all .15s}
+.topbar-btn:hover{background:var(--border);border-color:var(--text3)}
+.notif-dot{position:absolute;top:7px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--pink);border:1.5px solid var(--card)}
+.clock{font-family:var(--mono);font-size:12px;color:var(--text2);background:var(--card2);border:1px solid var(--border);padding:7px 12px;border-radius:8px}
+.avatar{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--purple),#4a6cf7);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;cursor:pointer}
+
+/* CONTENT */
+.content{overflow-y:auto;padding:24px 28px;background:var(--card2)}
+.content::-webkit-scrollbar{width:5px}
+.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* VIEWS */
+.view{display:none;flex-direction:column;gap:20px;animation:fadeIn .2s ease}
+.view.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ALERT STRIP */
+.alert-strip{background:linear-gradient(135deg,var(--purple),#4a6cf7);border-radius:var(--r-sm);padding:12px 18px;display:flex;align-items:center;gap:10px;color:#fff;font-size:13px;font-weight:500}
+.alert-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.7);animation:ripple 2s infinite}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;box-shadow:var(--shadow);transition:transform .2s,box-shadow .2s;cursor:pointer;position:relative;overflow:hidden}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow2)}
+.kpi-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.kpi-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.kpi-icon.purple{background:var(--purple-light)}
+.kpi-icon.teal{background:var(--teal-light)}
+.kpi-icon.pink{background:var(--pink-light)}
+.kpi-icon.amber{background:var(--amber-light)}
+.kpi-trend{font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;font-family:var(--mono)}
+.kpi-trend.up{background:var(--green-light);color:var(--green)}
+.kpi-trend.down{background:var(--pink-light);color:var(--red)}
+.kpi-label{font-size:12px;color:var(--text2);font-weight:500;margin-bottom:6px}
+.kpi-val{font-size:28px;font-weight:800;letter-spacing:-0.03em;color:var(--text)}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* GRID LAYOUTS */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.grid32{display:grid;grid-template-columns:3fr 2fr;gap:16px}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid var(--border)}
+.card-title{font-weight:700;font-size:14px;color:var(--text)}
+.card-badge{font-size:11px;font-family:var(--mono);color:var(--text2);background:var(--card2);border:1px solid var(--border);padding:3px 10px;border-radius:6px}
+.card-body{padding:18px 22px}
+.card-scroll{overflow-y:auto;max-height:320px}
+.card-scroll::-webkit-scrollbar{width:4px}
+.card-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* CHART CARD */
+.chart-wrap{padding:18px 22px;height:200px;position:relative}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:0 16px 10px;text-align:left;font-weight:500;border-bottom:1px solid var(--border)}
+.tbl td{padding:12px 16px;border-bottom:1px solid var(--border)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tbody tr{transition:background .15s;cursor:pointer}
+.tbl tbody tr:hover td{background:var(--card2)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;font-family:var(--mono)}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge.new{background:var(--blue-light);color:var(--blue)}
+.badge.emailed{background:var(--amber-light);color:#e08a00}
+.badge.replied{background:var(--purple-light);color:var(--purple)}
+.badge.booked{background:var(--green-light);color:var(--green)}
+.badge.closed{background:var(--green-light);color:var(--green)}
+.badge.active{background:var(--green-light);color:var(--green)}
+.badge.live{background:var(--teal-light);color:#009b87}
+.badge.building{background:var(--amber-light);color:#e08a00}
+.badge.draft{background:var(--card2);color:var(--text3);border:1px solid var(--border)}
+.badge.churned{background:var(--pink-light);color:var(--red)}
+.badge.queued{background:var(--card2);color:var(--text3);border:1px solid var(--border)}
+.badge.one_time{background:var(--blue-light);color:var(--blue)}
+.badge.retainer{background:var(--purple-light);color:var(--purple)}
+.badge.open{background:var(--blue-light);color:var(--blue)}
+.badge.qualified{background:var(--green-light);color:var(--green)}
+
+/* AI FEED */
+.ai-feed{display:flex;flex-direction:column}
+.ai-row{display:flex;gap:12px;padding:13px 22px;border-bottom:1px solid var(--border);transition:background .15s}
+.ai-row:last-child{border-bottom:none}
+.ai-row:hover{background:var(--card2)}
+.ai-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ai-ico.purple{background:var(--purple-light)}
+.ai-ico.teal{background:var(--teal-light)}
+.ai-ico.pink{background:var(--pink-light)}
+.ai-ico.amber{background:var(--amber-light)}
+.ai-ico.blue{background:var(--blue-light)}
+.ai-body{flex:1;min-width:0}
+.ai-action{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-detail{font-size:11px;color:var(--text2);font-family:var(--mono)}
+.ai-time{font-size:11px;color:var(--text3);font-family:var(--mono);flex-shrink:0;margin-top:2px}
+
+/* CAMPAIGN ROWS */
+.camp-row{padding:16px 22px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.camp-row:last-child{border-bottom:none}
+.camp-row:hover{background:var(--card2)}
+.camp-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.camp-name{font-weight:600;font-size:13.5px;color:var(--text)}
+.camp-stats{display:flex;gap:20px}
+.cstat{text-align:right}
+.cstat-v{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)}
+.cstat-l{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.prog-track{height:4px;background:var(--card2);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;transition:width 1s ease}
+
+/* SCORE */
+.score-wrap{display:flex;align-items:center;gap:8px}
+.score-track{flex:1;height:5px;background:var(--card2);border-radius:3px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px}
+.score-val{font-family:var(--mono);font-size:11px;color:var(--text2);width:26px;text-align:right}
+
+/* SEARCH / FILTER */
+.filter-bar{display:flex;gap:10px;align-items:center}
+.s-input{flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:10px 16px;font-size:13px;color:var(--text);font-family:var(--font);outline:none;transition:border-color .15s}
+.s-input:focus{border-color:var(--purple)}
+.s-input::placeholder{color:var(--text3)}
+.f-btn{padding:10px 16px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;font-family:var(--font);transition:all .15s;white-space:nowrap}
+.f-btn:hover{border-color:var(--purple);color:var(--purple)}
+.f-btn.active{background:var(--purple-light);border-color:var(--purple);color:var(--purple)}
+
+/* TASK */
+.task-row{display:flex;align-items:center;gap:12px;padding:13px 22px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.task-row:last-child{border-bottom:none}
+.task-row:hover{background:var(--card2)}
+.task-cb{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;font-size:11px}
+.task-cb:hover{border-color:var(--purple)}
+.task-cb.done{background:var(--green);border-color:var(--green);color:#fff}
+.task-txt{flex:1;font-size:13px;font-weight:500}
+.task-txt.done{text-decoration:line-through;color:var(--text3)}
+.task-due{font-size:11px;font-family:var(--mono);color:var(--text3)}
+.task-due.urgent{color:var(--red);font-weight:600}
+
+/* CHAT */
+.chat-row{display:flex;gap:12px;padding:14px 22px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.chat-row:last-child{border-bottom:none}
+.chat-row:hover{background:var(--card2)}
+.chat-av{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--purple),#4a6cf7);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.chat-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.chat-prev{font-size:12px;color:var(--text2)}
+
+/* EMPTY */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;gap:10px}
+.empty-ico{font-size:32px;opacity:.25}
+.empty-txt{font-size:13px;color:var(--text3);font-family:var(--mono)}
+
+/* REVENUE BIG */
+.rev-big{font-size:38px;font-weight:800;letter-spacing:-0.04em;color:var(--text)}
+
+/* MINI STAT */
+.mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)}
+.mstat{background:var(--card);padding:16px 22px}
+.mstat-l{font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:5px}
+.mstat-v{font-size:20px;font-weight:700;color:var(--text)}
+
+/* DONUT CHART */
+.donut-wrap{display:flex;align-items:center;gap:20px;padding:18px 22px}
+.donut-legend{display:flex;flex-direction:column;gap:10px;flex:1}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:12px}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.legend-label{color:var(--text2);flex:1}
+.legend-val{font-weight:700;font-family:var(--mono);font-size:12px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-wrap">
+      <div class="logo-icon">C</div>
+      <div>
+        <div class="logo-name">Corbex</div>
+        <div class="logo-tagline">AI COMMAND CENTER</div>
+      </div>
+    </div>
+  </div>
+  <nav class="nav">
+    <div class="nav-group">Overview</div>
+    <div class="nav-item active" onclick="nav('overview',this)"><span class="nav-icon">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="nav('revenue',this)"><span class="nav-icon">💰</span>Revenue</div>
+    <div class="nav-group">Operations</div>
+    <div class="nav-item" onclick="nav('leads',this)"><span class="nav-icon">🎯</span>Leads<span class="nav-badge" id="navLeadBadge">0</span></div>
+    <div class="nav-item" onclick="nav('clients',this)"><span class="nav-icon">👥</span>Clients</div>
+    <div class="nav-item" onclick="nav('campaigns',this)"><span class="nav-icon">📣</span>Campaigns</div>
+    <div class="nav-group">Automation</div>
+    <div class="nav-item" onclick="nav('emails',this)"><span class="nav-icon">✉️</span>Emails</div>
+    <div class="nav-item" onclick="nav('chats',this)"><span class="nav-icon">💬</span>Live Chats</div>
+    <div class="nav-item" onclick="nav('social',this)"><span class="nav-icon">📱</span>Social Media</div>
+    <div class="nav-item" onclick="nav('sites',this)"><span class="nav-icon">🌐</span>Site Builds</div>
+    <div class="nav-group">Intelligence</div>
+    <div class="nav-item" onclick="nav('ai',this)"><span class="nav-icon">🤖</span>AI Manager</div>
+    <div class="nav-item" onclick="nav('tasks',this)"><span class="nav-icon">✅</span>My Tasks</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="ai-pill" onclick="nav('ai',null)">
+      <div class="ai-dot"></div>
+      <div><div class="ai-pill-text">AI MANAGER ACTIVE</div><div class="ai-pill-sub">Last decision: 3 min ago</div></div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <header class="topbar">
+    <div class="page-title" id="pageTitle">Dashboard</div>
+    <div class="topbar-right">
+      <div class="search-bar">🔍 <span style="color:var(--text3)">Search anything...</span></div>
+      <div class="topbar-btn">🔔<div class="notif-dot"></div></div>
+      <div class="clock" id="clock">--:--</div>
+      <div class="avatar">N</div>
+    </div>
+  </header>
+
+  <div class="content" id="content">
+
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div class="alert-strip">
+        <div class="alert-dot"></div>
+        <span id="aiStrip">AI Manager active — 3 campaigns running, 47 emails sent today, 2 sites in build queue</span>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi" onclick="nav('revenue',null)">
+          <div class="kpi-top"><div class="kpi-icon purple">💰</div><span class="kpi-trend up" id="kRevTrend">Live</span></div>
+          <div class="kpi-label">Total Revenue</div>
+          <div class="kpi-val" id="kRev">$0</div>
+          <div class="kpi-sub">All time earnings</div>
+        </div>
+        <div class="kpi" onclick="nav('clients',null)">
+          <div class="kpi-top"><div class="kpi-icon teal">👥</div><span class="kpi-trend up" id="kClientTrend">+0</span></div>
+          <div class="kpi-label">Active Clients</div>
+          <div class="kpi-val" id="kClients">0</div>
+          <div class="kpi-sub">Paying clients</div>
+        </div>
+        <div class="kpi" onclick="nav('leads',null)">
+          <div class="kpi-top"><div class="kpi-icon pink">🎯</div><span class="kpi-trend up">+200/day</span></div>
+          <div class="kpi-label">Total Leads</div>
+          <div class="kpi-val" id="kLeads">0</div>
+          <div class="kpi-sub">Via Apollo.io</div>
+        </div>
+        <div class="kpi" onclick="nav('revenue',null)">
+          <div class="kpi-top"><div class="kpi-icon amber">🔄</div><span class="kpi-trend up" id="kMRRTrend">0 active</span></div>
+          <div class="kpi-label">Monthly Recurring</div>
+          <div class="kpi-val" id="kMRR">$0</div>
+          <div class="kpi-sub">Retainer income</div>
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Campaign Performance</div><div class="card-badge" id="campBadge">0 active</div></div>
+          <div id="campList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">AI Activity</div><div class="card-badge" style="color:var(--green)">● Live</div></div>
+          <div class="ai-feed card-scroll" id="aiFeed"></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Hot Leads</div><div class="card-badge" id="hotBadge">0 qualified</div></div>
+          <div class="card-scroll">
+            <table class="tbl"><thead><tr><th>Name</th><th>Company</th><th>Niche</th><th>Status</th><th>Score</th></tr></thead>
+            <tbody id="hotLeads"></tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">My Tasks</div><div class="card-badge" id="taskBadge">0 pending</div></div>
+          <div id="taskMini"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REVENUE -->
+    <div class="view" id="view-revenue">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon purple">💰</div></div><div class="kpi-label">Total Revenue</div><div class="kpi-val" id="rTotal">$0</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon teal">🔄</div></div><div class="kpi-label">Monthly Recurring</div><div class="kpi-val" id="rMRR">$0</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon pink">⚡</div></div><div class="kpi-label">One-time Payments</div><div class="kpi-val" id="rOT">$0</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon amber">📈</div></div><div class="kpi-label">Avg Deal Size</div><div class="kpi-val" id="rAvg">$0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Payment History</div><div class="card-badge" id="payBadge">0 transactions</div></div>
+        <div class="card-scroll" style="max-height:460px">
+          <table class="tbl"><thead><tr><th>Date</th><th>Client</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead>
+          <tbody id="revRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADS -->
+    <div class="view" id="view-leads">
+      <div class="filter-bar">
+        <input class="s-input" placeholder="Search by name, email, company..." id="leadQ" oninput="renderLeads()"/>
+        <button class="f-btn active" onclick="setLF('all',this)">All</button>
+        <button class="f-btn" onclick="setLF('new',this)">New</button>
+        <button class="f-btn" onclick="setLF('emailed',this)">Emailed</button>
+        <button class="f-btn" onclick="setLF('replied',this)">Replied</button>
+        <button class="f-btn" onclick="setLF('booked',this)">Booked</button>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">All Leads</div><div class="card-badge" id="leadCount">0</div></div>
+        <div class="card-scroll" style="max-height:520px">
+          <table class="tbl"><thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Niche</th><th>Location</th><th>Status</th><th>Score</th></tr></thead>
+          <tbody id="leadRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="view" id="view-clients">
+      <div class="card">
+        <div class="card-head"><div class="card-title">All Clients</div><div class="card-badge" id="clientCount">0</div></div>
+        <div class="card-scroll" style="max-height:560px">
+          <table class="tbl"><thead><tr><th>Name</th><th>Business</th><th>Niche</th><th>Status</th><th>Site</th><th>Retainer</th><th>Total Paid</th></tr></thead>
+          <tbody id="clientRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CAMPAIGNS -->
+    <div class="view" id="view-campaigns">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon purple">✉️</div></div><div class="kpi-label">Emails Sent</div><div class="kpi-val" id="cSent">0</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon teal">👁️</div></div><div class="kpi-label">Avg Open Rate</div><div class="kpi-val" id="cOpen">0%</div><div class="kpi-sub">Industry avg: 21%</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon pink">📅</div></div><div class="kpi-label">Booked Calls</div><div class="kpi-val" id="cCalls">0</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon amber">🏆</div></div><div class="kpi-label">Closed Deals</div><div class="kpi-val" id="cClosed">0</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">All Campaigns</div><div class="card-badge" id="campCount2">0</div></div>
+        <div id="campDetail"></div>
+      </div>
+    </div>
+
+    <!-- EMAILS -->
+    <div class="view" id="view-emails">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Email Activity</div><div class="card-badge" id="emailCount">0 emails</div></div>
+        <div class="card-scroll" style="max-height:520px">
+          <table class="tbl"><thead><tr><th>Lead</th><th>Subject</th><th>Step</th><th>Status</th><th>Sent</th></tr></thead>
+          <tbody id="emailRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHATS -->
+    <div class="view" id="view-chats">
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Conversations</div><div class="card-badge" id="chatCount">0</div></div>
+          <div class="card-scroll" style="max-height:480px" id="chatList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">AI Summary</div></div>
+          <div class="card-body" id="chatDetail" style="font-size:13px;color:var(--text2);line-height:1.7">Select a conversation to view AI summary...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOCIAL -->
+    <div class="view" id="view-social">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Scheduled Posts</div><div class="card-badge" id="postCount">0</div></div>
+        <div class="card-scroll" style="max-height:520px">
+          <table class="tbl"><thead><tr><th>Platform</th><th>Content</th><th>Status</th><th>Scheduled</th><th>Performance</th></tr></thead>
+          <tbody id="postRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SITES -->
+    <div class="view" id="view-sites">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Site Build Queue</div><div class="card-badge" id="siteCount">0</div></div>
+        <div class="card-scroll" style="max-height:520px">
+          <table class="tbl"><thead><tr><th>Client</th><th>Business</th><th>Status</th><th>Niche</th><th>Preview</th></tr></thead>
+          <tbody id="siteRows"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI MANAGER -->
+    <div class="view" id="view-ai">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon purple">🧠</div></div><div class="kpi-label">Decisions Made</div><div class="kpi-val" id="aiD">0</div><div class="kpi-sub">Autonomous</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon teal">✉️</div></div><div class="kpi-label">Emails Written</div><div class="kpi-val">47</div><div class="kpi-sub">Today</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon pink">👤</div></div><div class="kpi-label">Leads Scored</div><div class="kpi-val" id="aiS">0</div><div class="kpi-sub">Auto-qualified</div></div>
+        <div class="kpi"><div class="kpi-top"><div class="kpi-icon amber">📱</div></div><div class="kpi-label">Posts Created</div><div class="kpi-val">12</div><div class="kpi-sub">This week</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Decision Log</div><div class="card-badge">Full history</div></div>
+        <div class="ai-feed card-scroll" style="max-height:440px" id="aiLog"></div>
+      </div>
+    </div>
+
+    <!-- TASKS -->
+    <div class="view" id="view-tasks">
+      <div class="card">
+        <div class="card-head"><div class="card-title">My Tasks</div><div class="card-badge" id="taskCount2">0 pending</div></div>
+        <div id="taskFull"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+const SB_URL='https://ylrlyvwulspiqokdonpi.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlscmx5dnd1bHNwaXFva2RvbnBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MjI1NzEsImV4cCI6MjA5NjI5ODU3MX0.trpVUX66rqBADs8iXj5G6nlTjSQBbIUriLtlCEFqkg4';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+let leads=[],clients=[],revenue=[],campaigns=[],emails=[],chats=[],posts=[],sites=[],tasks=[],aiLog=[];
+let lf='all';
+const titles={overview:'Dashboard',revenue:'Revenue',leads:'Leads',clients:'Clients',campaigns:'Campaigns',emails:'Emails',chats:'Live Chats',social:'Social Media',sites:'Site Builds',ai:'AI Manager',tasks:'My Tasks'};
+const niche={hvac:'HVAC',med_spa:'Med Spa',law_firm:'Law Firm',real_estate:'Real Estate',other:'Other'};
+const $=id=>document.getElementById(id);
+const fmt$=n=>'$'+Number(n||0).toLocaleString();
+const fmtD=d=>d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'—';
+const badge=s=>`<span class="badge ${s||'new'}">${s||'new'}</span>`;
+const score=v=>`<div class="score-wrap"><div class="score-track"><div class="score-fill" style="width:${v||0}%;background:linear-gradient(90deg,#ffb547,#2ecc8e)"></div></div><span class="score-val">${v||0}</span></div>`;
+
+// clock
+setInterval(()=>$('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true})+' 🇪🇬',1000);
+
+// nav
+function nav(name,el){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  $('view-'+name).classList.add('active');
+  if(el)el.classList.add('active');
+  $('pageTitle').textContent=titles[name]||name;
+  const fns={leads:renderLeads,revenue:renderRev,campaigns:renderCamps,emails:renderEmails,chats:renderChats,social:renderSocial,sites:renderSites,ai:renderAI,tasks:renderTasks,clients:renderClients};
+  if(fns[name])fns[name]();
+}
+
+// load
+async function load(){
+  const [a,b,c,d,e,f,g,h,i,j]=await Promise.all([
+    sb.from('leads').select('*').order('created_at',{ascending:false}).limit(200),
+    sb.from('clients').select('*').order('created_at',{ascending:false}),
+    sb.from('revenue').select('*').order('paid_at',{ascending:false}),
+    sb.from('campaigns').select('*').order('created_at',{ascending:false}),
+    sb.from('emails').select('*').order('created_at',{ascending:false}).limit(100),
+    sb.from('chats').select('*').order('updated_at',{ascending:false}),
+    sb.from('social_posts').select('*').order('created_at',{ascending:false}),
+    sb.from('site_builds').select('*').order('created_at',{ascending:false}),
+    sb.from('tasks').select('*').order('due_at',{ascending:true}),
+    sb.from('ai_decisions').select('*').order('created_at',{ascending:false}).limit(50),
+  ]);
+  leads=a.data||[];clients=b.data||[];revenue=c.data||[];campaigns=d.data||[];
+  emails=e.data||[];chats=f.data||[];posts=g.data||[];sites=h.data||[];tasks=i.data||[];aiLog=j.data||[];
+  renderOverview();
+  $('navLeadBadge').textContent=leads.filter(l=>l.status==='replied'||l.status==='booked').length||0;
+}
+
+function renderOverview(){
+  const tr=revenue.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const ac=clients.filter(c=>c.status==='active').length;
+  const mrr=clients.filter(c=>c.retainer_active).reduce((s,c)=>s+parseFloat(c.monthly_retainer||0),0);
+  $('kRev').textContent=fmt$(tr);$('kClients').textContent=ac;$('kLeads').textContent=leads.length;$('kMRR').textContent=fmt$(mrr);
+  $('kMRRTrend').textContent=clients.filter(c=>c.retainer_active).length+' active';
+  const ac2=campaigns.filter(c=>c.status==='active');
+  $('campBadge').textContent=ac2.length+' active';
+  $('campList').innerHTML=ac2.length?ac2.map(c=>`<div class="camp-row">
+    <div class="camp-top"><div class="camp-name">${c.name}</div>
+    <div class="camp-stats">
+      <div class="cstat"><div class="cstat-v">${c.emails_sent||0}</div><div class="cstat-l">sent</div></div>
+      <div class="cstat"><div class="cstat-v">${parseFloat(c.open_rate||0).toFixed(1)}%</div><div class="cstat-l">open</div></div>
+      <div class="cstat"><div class="cstat-v">${parseFloat(c.reply_rate||0).toFixed(1)}%</div><div class="cstat-l">reply</div></div>
+      <div class="cstat"><div class="cstat-v" style="color:var(--green)">${c.booked_calls||0}</div><div class="cstat-l">calls</div></div>
+    </div></div>
+    <div class="prog-track"><div class="prog-fill" style="width:${Math.min(parseFloat(c.open_rate||0)*2,100)}%;background:linear-gradient(90deg,var(--purple),var(--teal))"></div></div>
+  </div>`).join(''):`<div class="empty"><div class="empty-ico">📣</div><div class="empty-txt">No active campaigns yet</div></div>`;
+  const icons={campaign:'📣',email:'✉️',site:'🌐',lead:'👤',social:'📱',campaign_type:'🎯'};
+  const feed=[
+    {ico:'purple',icon:'✉️',action:'Wrote 47 cold emails for HVAC Texas',detail:'Native American tone · Step 1 sequence · Instantly queue',time:'3m'},
+    {ico:'teal',icon:'👤',action:`Scored ${leads.length} leads from Apollo pull`,detail:'Top: 94 pts (Glow Med Spa, Miami FL)',time:'12m'},
+    {ico:'pink',icon:'📣',action:'Paused Law Firms NYC — low open rate',detail:'18% open rate · Below 25% threshold',time:'31m'},
+    {ico:'blue',icon:'🌐',action:'Queued site build for Carter HVAC',detail:'Brief generated · Framer AI ready',time:'1h'},
+    {ico:'amber',icon:'📱',action:'Scheduled 8 LinkedIn posts this week',detail:'Before/after showcases · AI captions',time:'2h'},
+    ...aiLog.slice(0,2).map(a=>({ico:'purple',icon:'🧠',action:a.decision,detail:a.reasoning||'—',time:fmtD(a.created_at)}))
+  ];
+  $('aiFeed').innerHTML=feed.slice(0,6).map(e=>`<div class="ai-row"><div class="ai-ico ${e.ico}">${e.icon}</div><div class="ai-body"><div class="ai-action">${e.action}</div><div class="ai-detail">${e.detail}</div></div><div class="ai-time">${e.time}</div></div>`).join('');
+  const hot=leads.filter(l=>['replied','booked'].includes(l.status)||l.ai_score>70).slice(0,8);
+  $('hotBadge').textContent=hot.length+' qualified';
+  $('hotLeads').innerHTML=hot.length?hot.map(l=>`<tr><td><strong>${l.first_name||''} ${l.last_name||''}</strong></td><td style="color:var(--text2)">${l.company_name||'—'}</td><td style="font-size:11px;color:var(--text3)">${niche[l.niche]||'—'}</td><td>${badge(l.status)}</td><td>${score(l.ai_score)}</td></tr>`).join(''):`<tr><td colspan="5"><div class="empty"><div class="empty-txt">No qualified leads yet</div></div></td></tr>`;
+  const pt=tasks.filter(t=>t.status==='pending').slice(0,5);
+  $('taskBadge').textContent=pt.length+' pending';
+  $('taskMini').innerHTML=pt.length?pt.map(t=>`<div class="task-row" onclick="toggleTask('${t.id}',this)"><div class="task-cb ${t.status==='done'?'done':''}">${t.status==='done'?'✓':''}</div><div class="task-txt ${t.status==='done'?'done':''}">${t.title}</div><div class="task-due">${fmtD(t.due_at)}</div></div>`).join(''):`<div class="empty"><div class="empty-ico">✅</div><div class="empty-txt">No pending tasks</div></div>`;
+}
+
+function renderRev(){
+  const t=revenue.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const mrr=clients.filter(c=>c.retainer_active).reduce((s,c)=>s+parseFloat(c.monthly_retainer||0),0);
+  const ot=revenue.filter(r=>r.type==='one_time').reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  $('rTotal').textContent=fmt$(t);$('rMRR').textContent=fmt$(mrr);$('rOT').textContent=fmt$(ot);
+  $('rAvg').textContent=fmt$(clients.length?t/clients.length:0);
+  $('payBadge').textContent=revenue.length+' transactions';
+  $('revRows').innerHTML=revenue.map(r=>`<tr><td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${fmtD(r.paid_at)}</td><td>${clients.find(c=>c.id===r.client_id)?.business_name||'—'}</td><td>${badge(r.type)}</td><td style="font-weight:700;color:var(--green)">${fmt$(r.amount)}</td><td style="color:var(--text2)">${r.description||'—'}</td></tr>`).join('')||`<tr><td colspan="5"><div class="empty"><div class="empty-txt">No payments yet</div></div></td></tr>`;
+}
+
+let lf2='all';
+function setLF(f,btn){lf2=f;document.querySelectorAll('#view-leads .f-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderLeads();}
+function renderLeads(){
+  const q=($('leadQ')?.value||'').toLowerCase();
+  let l=leads;
+  if(lf2!=='all')l=l.filter(x=>x.status===lf2);
+  if(q)l=l.filter(x=>(x.first_name+' '+x.last_name+' '+x.email+' '+(x.company_name||'')).toLowerCase().includes(q));
+  $('leadCount').textContent=l.length+' leads';
+  $('leadRows').innerHTML=l.map(x=>`<tr><td><strong>${x.first_name||''} ${x.last_name||''}</strong></td><td style="color:var(--text2)">${x.company_name||'—'}</td><td style="font-size:12px;color:var(--text3)">${x.email}</td><td style="font-size:12px">${niche[x.niche]||'—'}</td><td style="color:var(--text3);font-size:12px">${x.city||''} ${x.state||''}</td><td>${badge(x.status)}</td><td>${score(x.ai_score)}</td></tr>`).join('')||`<tr><td colspan="7"><div class="empty"><div class="empty-txt">No leads found</div></div></td></tr>`;
+}
+
+function renderClients(){
+  $('clientCount').textContent=clients.length+' clients';
+  $('clientRows').innerHTML=clients.map(c=>`<tr><td><strong>${c.name}</strong></td><td>${c.business_name}</td><td style="font-size:12px;color:var(--text3)">${niche[c.niche]||'—'}</td><td>${badge(c.status)}</td><td>${badge(c.site_status)}</td><td style="font-family:var(--mono);font-size:12px;color:${c.retainer_active?'var(--green)':'var(--text3)'}">${c.retainer_active?fmt$(c.monthly_retainer)+'/mo':'—'}</td><td style="font-weight:700;color:var(--purple)">${fmt$(c.total_paid)}</td></tr>`).join('')||`<tr><td colspan="7"><div class="empty"><div class="empty-txt">No clients yet</div></div></td></tr>`;
+}
+
+function renderCamps(){
+  const ts=campaigns.reduce((s,c)=>s+(c.emails_sent||0),0);
+  const ao=campaigns.filter(c=>c.open_rate>0).reduce((s,c,_,a)=>s+c.open_rate/a.length,0);
+  $('cSent').textContent=ts.toLocaleString();$('cOpen').textContent=ao.toFixed(1)+'%';
+  $('cCalls').textContent=campaigns.reduce((s,c)=>s+(c.booked_calls||0),0);
+  $('cClosed').textContent=campaigns.reduce((s,c)=>s+(c.closed_deals||0),0);
+  $('campCount2').textContent=campaigns.length+' campaigns';
+  $('campDetail').innerHTML=campaigns.map(c=>`<div class="camp-row">
+    <div class="camp-top"><div style="display:flex;align-items:center;gap:10px"><div class="camp-name">${c.name}</div>${badge(c.status)}</div>
+    <div class="camp-stats">
+      <div class="cstat"><div class="cstat-v">${c.leads_targeted||0}</div><div class="cstat-l">targeted</div></div>
+      <div class="cstat"><div class="cstat-v">${c.emails_sent||0}</div><div class="cstat-l">sent</div></div>
+      <div class="cstat"><div class="cstat-v">${parseFloat(c.open_rate||0).toFixed(1)}%</div><div class="cstat-l">open</div></div>
+      <div class="cstat"><div class="cstat-v">${parseFloat(c.reply_rate||0).toFixed(1)}%</div><div class="cstat-l">reply</div></div>
+      <div class="cstat"><div class="cstat-v">${c.booked_calls||0}</div><div class="cstat-l">calls</div></div>
+      <div class="cstat"><div class="cstat-v" style="color:var(--green)">${fmt$(c.revenue_generated)}</div><div class="cstat-l">revenue</div></div>
+    </div></div>
+    <div class="prog-track"><div class="prog-fill" style="width:${Math.min(parseFloat(c.open_rate||0)*2,100)}%;background:linear-gradient(90deg,var(--purple),var(--teal))"></div></div>
+  </div>`).join('')||`<div class="empty"><div class="empty-txt">No campaigns</div></div>`;
+}
+
+function renderEmails(){
+  $('emailCount').textContent=emails.length+' emails';
+  $('emailRows').innerHTML=emails.map(e=>{const l=leads.find(x=>x.id===e.lead_id);return`<tr><td>${l?l.first_name+' '+l.last_name:'Unknown'}</td><td style="color:var(--text2)">${e.subject||'—'}</td><td style="font-family:var(--mono);font-size:11px">Step ${e.sequence_step||1}</td><td>${badge(e.status||'queued')}</td><td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${fmtD(e.sent_at)}</td></tr>`}).join('')||`<tr><td colspan="5"><div class="empty"><div class="empty-txt">No emails yet — connect Instantly.ai</div></div></td></tr>`;
+}
+
+function renderChats(){
+  $('chatCount').textContent=chats.length+' chats';
+  $('chatList').innerHTML=chats.length?chats.map(c=>`<div class="chat-row" onclick="showChat('${c.id}')"><div class="chat-av">${(c.visitor_name||'?')[0].toUpperCase()}</div><div style="flex:1"><div class="chat-name">${c.visitor_name||c.visitor_email||'Anonymous'}</div><div class="chat-prev">${c.last_message||'No messages'}</div></div><div>${badge(c.status||'open')}</div></div>`).join(''):`<div class="empty"><div class="empty-ico">💬</div><div class="empty-txt">No chats yet</div></div>`;
+}
+function showChat(id){const c=chats.find(x=>x.id===id);if(!c)return;$('chatDetail').innerHTML=`<strong>${c.visitor_name||'Visitor'}</strong> · ${c.channel||'website'}<br><br>${c.ai_summary||'No AI summary yet.'}<br><br><span style="font-size:11px;color:var(--text3)">Messages: ${c.message_count||0} · Booked: ${c.booked_call?'Yes':'No'}</span>`;}
+
+function renderSocial(){
+  $('postCount').textContent=posts.length+' posts';
+  $('postRows').innerHTML=posts.map(p=>`<tr><td style="text-transform:capitalize;font-size:12px">${p.platform||'—'}</td><td style="color:var(--text2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.content||'—'}</td><td>${badge(p.status||'draft')}</td><td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${fmtD(p.scheduled_for)}</td><td style="font-size:11px;color:var(--text3)">${p.impressions||0} views</td></tr>`).join('')||`<tr><td colspan="5"><div class="empty"><div class="empty-txt">No posts yet — connect Buffer</div></div></td></tr>`;
+}
+
+function renderSites(){
+  $('siteCount').textContent=sites.length+' builds';
+  $('siteRows').innerHTML=sites.map(s=>{const c=clients.find(x=>x.id===s.client_id);return`<tr><td><strong>${c?.name||'—'}</strong></td><td style="color:var(--text2)">${s.business_name||c?.business_name||'—'}</td><td>${badge(s.status||'queued')}</td><td style="font-size:12px;color:var(--text3)">${niche[s.niche]||'—'}</td><td>${s.preview_url?`<a href="${s.preview_url}" target="_blank" style="color:var(--purple);font-size:12px">View →</a>`:`<span style="color:var(--text3);font-size:12px">Pending</span>`}</td></tr>`}).join('')||`<tr><td colspan="5"><div class="empty"><div class="empty-txt">No site builds yet</div></div></td></tr>`;
+}
+
+function renderAI(){
+  $('aiD').textContent=aiLog.length;$('aiS').textContent=leads.filter(l=>l.ai_score>0).length;
+  const feed=[
+    {ico:'purple',icon:'✉️',action:'Wrote 47 cold emails for HVAC Texas',detail:'Native American tone · Step 1 sequence',time:'3m'},
+    {ico:'teal',icon:'🎯',action:'Scored all leads from today\'s Apollo pull',detail:'Top scorer: 94pts — Glow Med Spa Miami',time:'12m'},
+    {ico:'pink',icon:'📣',action:'Paused Law Firms NYC campaign',detail:'Open rate 18% — below 25% threshold',time:'31m'},
+    {ico:'blue',icon:'🌐',action:'Generated Framer build brief for Carter HVAC',detail:'Design refs pulled from Awwwards',time:'1h'},
+    ...aiLog.map(a=>({ico:'purple',icon:'🧠',action:a.decision,detail:a.reasoning||'—',time:fmtD(a.created_at)}))
+  ];
+  $('aiLog').innerHTML=feed.map(e=>`<div class="ai-row"><div class="ai-ico ${e.ico}">${e.icon}</div><div class="ai-body"><div class="ai-action">${e.action}</div><div class="ai-detail">${e.detail}</div></div><div class="ai-time">${e.time}</div></div>`).join('');
+}
+
+async function toggleTask(id,row){
+  const cb=row.querySelector('.task-cb');
+  const done=!cb.classList.contains('done');
+  await sb.from('tasks').update({status:done?'done':'pending'}).eq('id',id);
+  cb.classList.toggle('done',done);cb.textContent=done?'✓':'';
+  row.querySelector('.task-txt').classList.toggle('done',done);
+}
+function renderTasks(){
+  $('taskCount2').textContent=tasks.filter(t=>t.status==='pending').length+' pending';
+  $('taskFull').innerHTML=tasks.length?tasks.map(t=>`<div class="task-row" onclick="toggleTask('${t.id}',this)"><div class="task-cb ${t.status==='done'?'done':''}">${t.status==='done'?'✓':''}</div><div class="task-txt ${t.status==='done'?'done':''}">${t.title}</div><div style="font-size:11px;color:var(--text3);margin-right:8px">${t.type||''}</div><div class="task-due ${t.due_at&&new Date(t.due_at)<new Date()&&t.status!=='done'?'urgent':''}">${fmtD(t.due_at)||'No due date'}</div></div>`).join(''):`<div class="empty"><div class="empty-ico">✅</div><div class="empty-txt">No tasks</div></div>`;
+}
+
+// realtime
+sb.channel('corbex').on('postgres_changes',{event:'*',schema:'public'},()=>load()).subscribe();
+load();
+</script>
+</body>
+</html>
